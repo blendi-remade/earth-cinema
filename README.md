@@ -24,7 +24,7 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 ## Usage
 
 1. Navigate to [earth.google.com](https://earth.google.com/web)
-2. Find a scenic 3D view
+2. Find a scenic 3D view (works with any other view too)
 3. Click the extension icon
 4. Capture → Transform → Generate Video
 
