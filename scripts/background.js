@@ -141,7 +141,7 @@ async function runTransformInBackground(imageData, prompt, passedApiKey) {
   console.log('[Earth Cinema] Starting background transform...');
   
   // Enhance prompt to remove UI elements and keep the scene
-  const enhancedPrompt = `Remove ALL UI elements from the image. Then: ${prompt}. Depict this EXACT view.`;
+  const enhancedPrompt = `Remove ALL UI elements from the image. Then: ${prompt}. Depict this EXACT viewing angle and distance.`;
   
   try {
     const response = await fetch('https://fal.run/fal-ai/nano-banana-pro/edit', {
