@@ -34,8 +34,3 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 - [fal.ai](https://fal.ai) APIs:
   - `nano-banana-pro/edit` (image transformation)
   - `veo3.1/fast/image-to-video` (video generation)
-
----
-
-Built with ❤️ by fal.ai
-
