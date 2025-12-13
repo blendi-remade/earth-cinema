@@ -41,6 +41,22 @@ const FAL_API = {
   VIDEO: 'https://fal.run/fal-ai/veo3.1/fast/image-to-video'
 };
 
+// ============================================
+// Service Worker Keep-Alive Helper
+// Prevents Chrome from terminating the worker during long operations
+// ============================================
+async function waitUntil(promise) {
+  const keepAlive = setInterval(() => {
+    chrome.runtime.getPlatformInfo();
+  }, 25 * 1000);
+  
+  try {
+    return await promise;
+  } finally {
+    clearInterval(keepAlive);
+  }
+}
+
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   handleMessage(request, sendResponse);
@@ -144,7 +160,8 @@ async function runTransformInBackground(imageData, prompt, passedApiKey) {
   const enhancedPrompt = `Remove ALL UI elements from the image. Then: ${prompt}. Depict this EXACT viewing angle and distance.`;
   
   try {
-    const response = await fetch('https://fal.run/fal-ai/nano-banana-pro/edit', {
+    // Wrap in waitUntil to keep service worker alive
+    const response = await waitUntil(fetch('https://fal.run/fal-ai/nano-banana-pro/edit', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${apiKey}`,
@@ -156,7 +173,7 @@ async function runTransformInBackground(imageData, prompt, passedApiKey) {
         aspect_ratio: 'auto',
         resolution: '2K'
       })
-    });
+    }));
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -207,8 +224,8 @@ async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '
   console.log('[Earth Cinema] Starting Veo 3.1 video generation...', { duration, generateAudio });
   
   try {
-    // Use Veo 3.1 Fast sync endpoint
-    const response = await fetch(FAL_API.VIDEO, {
+    // Wrap in waitUntil to keep service worker alive
+    const response = await waitUntil(fetch(FAL_API.VIDEO, {
       method: 'POST',
       headers: {
         'Authorization': `Key ${apiKey}`,
@@ -222,7 +239,7 @@ async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '
         generate_audio: generateAudio,
         aspect_ratio: 'auto'
       })
-    });
+    }));
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

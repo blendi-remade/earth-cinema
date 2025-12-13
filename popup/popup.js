@@ -154,6 +154,8 @@ async function restoreUI() {
   
   // Restore transformed image
   if (state.transformedImageUrl) {
+    // Must also show transform section (parent container)
+    elements.transformSection.classList.remove('hidden');
     elements.transformedImage.src = state.transformedImageUrl;
     elements.transformPreview.classList.remove('hidden');
     elements.videoSection.classList.remove('hidden');
@@ -190,6 +192,8 @@ async function checkOngoingOperation() {
       state.currentOperation = null;
       await saveState();
       
+      // Must also show transform section (parent container)
+      elements.transformSection.classList.remove('hidden');
       elements.transformedImage.src = status.transformedUrl;
       elements.transformPreview.classList.remove('hidden');
       elements.videoSection.classList.remove('hidden');
@@ -269,6 +273,8 @@ function startPolling() {
         state.currentOperation = null;
         await saveState();
         
+        // Must also show transform section (parent container)
+        elements.transformSection.classList.remove('hidden');
         elements.transformedImage.src = status.transformedUrl;
         elements.transformPreview.classList.remove('hidden');
         elements.videoSection.classList.remove('hidden');
@@ -483,6 +489,8 @@ function handleBackgroundMessage(message, sender, sendResponse) {
     
     if (message.success) {
       state.transformedImageUrl = message.imageUrl;
+      // Must also show transform section (parent container)
+      elements.transformSection.classList.remove('hidden');
       elements.transformedImage.src = message.imageUrl;
       elements.transformPreview.classList.remove('hidden');
       elements.videoSection.classList.remove('hidden');

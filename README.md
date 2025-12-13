@@ -28,10 +28,6 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 3. Click the extension icon
 4. Capture → Transform → Generate Video
 
-## Known Limitations
-
-- **Keep the popup open during generation**: Due to Chrome extension service worker limitations (Manifest V3), image and video generation work best when you keep the extension popup open. If you close it mid-generation, you may need to click "Start Over" and retry.
-
 ## Tech
 
 - Chrome Extension (Manifest V3)
