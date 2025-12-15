@@ -667,23 +667,22 @@ select:focus {
   z-index: 200;
 }
 
-.loader {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.fal-logo-spinner {
+  width: 48px;
+  height: 48px;
+  animation: logoSpin 4s ease-in-out infinite;
 }
 
-.loader-ring {
-  display: none;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes logoSpin {
+  0% { transform: rotate(0deg); fill: #5718c0; }
+  20% { transform: rotate(360deg); fill: #ab77ff; }
+  25% { transform: rotate(360deg); fill: #e366af; }
+  45% { transform: rotate(720deg); fill: #ec0648; }
+  50% { transform: rotate(720deg); fill: #ab77ff; }
+  70% { transform: rotate(1080deg); fill: #38acc6; }
+  75% { transform: rotate(1080deg); fill: #3fb5fe; }
+  95% { transform: rotate(1440deg); fill: #115ef3; }
+  100% { transform: rotate(1440deg); fill: #5718c0; }
 }
 
 .loading-text {
