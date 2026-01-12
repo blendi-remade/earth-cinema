@@ -83,7 +83,7 @@ async function handleMessage(request, sendResponse) {
       case 'startTransform':
         // Start transform in background, don't wait for it
         sendResponse({ started: true });
-        runTransformInBackground(request.imageData, request.prompt, request.apiKey);
+        runTransformInBackground(request.imageData, request.prompt, request.apiKey, request.resolution);
         break;
         
       case 'startVideo':
@@ -140,7 +140,7 @@ function getApiKey(passedKey) {
 /**
  * Run transform in background and save result to storage
  */
-async function runTransformInBackground(imageData, prompt, passedApiKey) {
+async function runTransformInBackground(imageData, prompt, passedApiKey, resolution = '2K') {
   const apiKey = getApiKey(passedApiKey);
   
   if (!apiKey) {
@@ -154,7 +154,7 @@ async function runTransformInBackground(imageData, prompt, passedApiKey) {
     [STORAGE_KEYS.OPERATION_ERROR]: null
   });
   
-  console.log('[Earth Cinema] Starting background transform...');
+  console.log('[Earth Cinema] Starting background transform...', { resolution });
   
   // Enhance prompt to remove UI elements and keep the scene
   const enhancedPrompt = `Remove ALL UI elements from the image. Then: ${prompt}. Depict this EXACT viewing angle and distance.`;
@@ -171,7 +171,7 @@ async function runTransformInBackground(imageData, prompt, passedApiKey) {
         prompt: enhancedPrompt,
         image_urls: [imageData],
         aspect_ratio: 'auto',
-        resolution: '2K'
+        resolution: resolution
       })
     }));
     

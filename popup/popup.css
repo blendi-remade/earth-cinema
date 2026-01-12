@@ -400,10 +400,22 @@ select:focus {
   border-color: var(--accent);
 }
 
+.transform-options {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.transform-options .input-group {
+  flex: 1;
+}
+
 .video-options {
   display: flex;
   gap: 12px;
   align-items: flex-end;
+  margin-bottom: 12px;
 }
 
 .video-options .input-group {

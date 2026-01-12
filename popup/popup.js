@@ -646,6 +646,7 @@ async function captureView() {
 
 async function transformImage() {
   const prompt = elements.transformPrompt.value.trim();
+  const resolution = document.getElementById('transform-resolution').value;
   
   if (!prompt) {
     showToast('Prompt Required', 'Describe how you want to transform the image', 'error');
@@ -657,7 +658,7 @@ async function transformImage() {
   state.currentOperation = 'transforming';
   await saveState();
   
-  showLoading('Transforming with Nano Banana Pro...');
+  showLoading(`Transforming with Nano Banana Pro (${resolution})...`);
   elements.transformBtn.disabled = true;
   
   try {
@@ -672,7 +673,8 @@ async function transformImage() {
       action: 'startTransform',
       imageData: state.capturedImageBase64,
       prompt: prompt,
-      apiKey: apiKey
+      apiKey: apiKey,
+      resolution: resolution
     });
     
     // Start polling for completion
