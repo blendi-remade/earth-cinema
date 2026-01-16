@@ -366,6 +366,11 @@ input::placeholder, textarea::placeholder {
 .input-hint {
   font-size: 0.65rem;
   color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.input-hint:first-of-type {
+  margin-top: 6px;
 }
 
 .input-hint a {

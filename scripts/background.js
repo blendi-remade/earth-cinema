@@ -4,10 +4,6 @@
 // Runs independently of popup
 // ============================================
 
-// Config loaded from config.json (for development)
-let CONFIG = { FAL_API_KEY: null };
-let configLoaded = false;
-
 // Storage keys (same as popup)
 const STORAGE_KEYS = {
   CAPTURED_IMAGE: 'earthCinema_capturedImage',
@@ -16,25 +12,9 @@ const STORAGE_KEYS = {
   OPERATION: 'earthCinema_operation',
   OPERATION_ERROR: 'earthCinema_operationError',
   TRANSFORM_PROMPT: 'earthCinema_transformPrompt',
-  VIDEO_PROMPT: 'earthCinema_videoPrompt'
+  VIDEO_PROMPT: 'earthCinema_videoPrompt',
+  API_KEY: 'falApiKey'
 };
-
-// Load config on startup
-async function loadConfig() {
-  try {
-    const response = await fetch(chrome.runtime.getURL('config.json'));
-    if (response.ok) {
-      CONFIG = await response.json();
-      configLoaded = true;
-      console.log('[Earth Cinema] Config loaded from config.json');
-    }
-  } catch (e) {
-    console.log('[Earth Cinema] No config.json found, will use stored key');
-  }
-}
-
-// Initialize config
-loadConfig();
 
 // API Endpoints
 const FAL_API = {
@@ -67,29 +47,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * Route messages to appropriate handlers
  */
 async function handleMessage(request, sendResponse) {
-  // Ensure config is loaded before handling requests
-  if (!configLoaded) {
-    await loadConfig();
-  }
-  
   try {
     switch (request.action) {
-      case 'checkConfig':
-        const hasKey = !!(CONFIG.FAL_API_KEY && CONFIG.FAL_API_KEY !== 'YOUR_FAL_API_KEY_HERE');
-        console.log('[Earth Cinema] checkConfig:', hasKey);
-        sendResponse({ hasConfigKey: hasKey });
-        break;
-        
       case 'startTransform':
         // Start transform in background, don't wait for it
         sendResponse({ started: true });
-        runTransformInBackground(request.imageData, request.prompt, request.apiKey, request.resolution);
+        runTransformInBackground(request.imageData, request.prompt, request.resolution);
         break;
         
       case 'startVideo':
         // Start video generation in background, don't wait for it
         sendResponse({ started: true });
-        runVideoInBackground(request.imageUrl, request.prompt, request.apiKey, request.duration, request.generateAudio);
+        runVideoInBackground(request.imageUrl, request.prompt, request.duration, request.generateAudio);
         break;
         
       case 'checkOperationStatus':
@@ -128,23 +97,21 @@ async function getOperationStatus() {
 }
 
 /**
- * Get the API key (from config or passed in)
+ * Get the API key from storage
  */
-function getApiKey(passedKey) {
-  if (CONFIG.FAL_API_KEY && CONFIG.FAL_API_KEY !== 'YOUR_FAL_API_KEY_HERE') {
-    return CONFIG.FAL_API_KEY;
-  }
-  return passedKey;
+async function getApiKey() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.API_KEY);
+  return stored[STORAGE_KEYS.API_KEY] || null;
 }
 
 /**
  * Run transform in background and save result to storage
  */
-async function runTransformInBackground(imageData, prompt, passedApiKey, resolution = '2K') {
-  const apiKey = getApiKey(passedApiKey);
+async function runTransformInBackground(imageData, prompt, resolution = '2K') {
+  const apiKey = await getApiKey();
   
   if (!apiKey) {
-    await saveOperationError('transforming', 'No API key configured');
+    await saveOperationError('transforming', 'No API key configured. Please add your fal.ai API key in the extension settings.');
     return;
   }
   
@@ -160,8 +127,13 @@ async function runTransformInBackground(imageData, prompt, passedApiKey, resolut
   const enhancedPrompt = `Remove ALL UI elements from the image. Then: ${prompt}. Depict this EXACT viewing angle and distance.`;
   
   try {
+    // Create timeout promise (90 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Transform timed out after 90 seconds. The fal.ai service may be busy. Please try again.')), 90000)
+    );
+    
     // Wrap in waitUntil to keep service worker alive
-    const response = await waitUntil(fetch('https://fal.run/fal-ai/nano-banana-pro/edit', {
+    const fetchPromise = waitUntil(fetch('https://fal.run/fal-ai/nano-banana-pro/edit', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${apiKey}`,
@@ -175,9 +147,25 @@ async function runTransformInBackground(imageData, prompt, passedApiKey, resolut
       })
     }));
     
+    // Race between fetch and timeout
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || errorData.message || `API error: ${response.status}`);
+      let errorMessage = errorData.detail || errorData.message || `API error: ${response.status}`;
+      
+      // Provide helpful error messages for common status codes
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Invalid API key. Please check your key in the extension settings.';
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+      } else if (response.status === 413) {
+        errorMessage = 'Image too large. Try capturing at a lower resolution.';
+      } else if (response.status === 500 || response.status === 503) {
+        errorMessage = 'fal.ai service is temporarily unavailable. Please try again later.';
+      }
+      
+      throw new Error(errorMessage);
     }
     
     const result = await response.json();
@@ -199,19 +187,26 @@ async function runTransformInBackground(imageData, prompt, passedApiKey, resolut
     
   } catch (error) {
     console.error('[Earth Cinema] Transform error:', error);
-    await saveOperationError('transforming', error.message);
-    notifyPopup('transformComplete', { success: false, error: error.message });
+    let userMessage = error.message;
+    
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      userMessage = 'Network error. Please check your internet connection and try again.';
+    }
+    
+    await saveOperationError('transforming', userMessage);
+    notifyPopup('transformComplete', { success: false, error: userMessage });
   }
 }
 
 /**
  * Run video generation in background and save result to storage
  */
-async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '8s', generateAudio = true) {
-  const apiKey = getApiKey(passedApiKey);
+async function runVideoInBackground(imageUrl, prompt, duration = '8s', generateAudio = true) {
+  const apiKey = await getApiKey();
   
   if (!apiKey) {
-    await saveOperationError('generating_video', 'No API key configured');
+    await saveOperationError('generating_video', 'No API key configured. Please add your fal.ai API key in the extension settings.');
     return;
   }
   
@@ -224,8 +219,13 @@ async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '
   console.log('[Earth Cinema] Starting Veo 3.1 video generation...', { duration, generateAudio });
   
   try {
+    // Create timeout promise (8 minutes)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Video generation timed out after 8 minutes. The fal.ai service may be busy. Please try again.')), 480000)
+    );
+    
     // Wrap in waitUntil to keep service worker alive
-    const response = await waitUntil(fetch(FAL_API.VIDEO, {
+    const fetchPromise = waitUntil(fetch(FAL_API.VIDEO, {
       method: 'POST',
       headers: {
         'Authorization': `Key ${apiKey}`,
@@ -241,10 +241,24 @@ async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '
       })
     }));
     
+    // Race between fetch and timeout
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('[Earth Cinema] Video API error:', errorData);
-      throw new Error(errorData.detail || errorData.message || `API error: ${response.status}`);
+      let errorMessage = errorData.detail || errorData.message || `API error: ${response.status}`;
+      
+      // Provide helpful error messages for common status codes
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Invalid API key. Please check your key in the extension settings.';
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+      } else if (response.status === 500 || response.status === 503) {
+        errorMessage = 'fal.ai service is temporarily unavailable. Please try again later.';
+      }
+      
+      throw new Error(errorMessage);
     }
     
     const result = await response.json();
@@ -265,8 +279,15 @@ async function runVideoInBackground(imageUrl, prompt, passedApiKey, duration = '
     
   } catch (error) {
     console.error('[Earth Cinema] Video error:', error);
-    await saveOperationError('generating_video', error.message);
-    notifyPopup('videoComplete', { success: false, error: error.message });
+    let userMessage = error.message;
+    
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      userMessage = 'Network error. Please check your internet connection and try again.';
+    }
+    
+    await saveOperationError('generating_video', userMessage);
+    notifyPopup('videoComplete', { success: false, error: userMessage });
   }
 }
 

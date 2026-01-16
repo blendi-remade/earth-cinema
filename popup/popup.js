@@ -56,8 +56,7 @@ const state = {
   transformPrompt: '',
   videoPrompt: '',
   isApiKeyVisible: false,
-  hasApiKey: false,
-  hasConfigKey: false
+  hasApiKey: false
 };
 
 // Storage keys
@@ -387,30 +386,25 @@ async function resetState() {
 
 async function checkApiKey() {
   try {
-    // First check if config.json has a key
-    const configResponse = await chrome.runtime.sendMessage({ action: 'checkConfig' });
-    if (configResponse?.hasConfigKey) {
-      state.hasApiKey = true;
-      state.hasConfigKey = true;
-      updateApiStatus(true);
-      elements.captureBtn.disabled = false;
-      // Hide API section entirely when using config
-      elements.apiCard.style.display = 'none';
-      console.log('[Earth Cinema] Using API key from config.json');
-      return;
-    }
-    
-    // Fall back to stored key
+    // Check stored key
     const { falApiKey } = await chrome.storage.local.get('falApiKey');
     if (falApiKey) {
       state.hasApiKey = true;
+      
+      programmaticChange = true;
       elements.apiKeyInput.value = '••••••••••••••••••••';
+      setTimeout(() => { programmaticChange = false; }, 0);
+      
       elements.apiKeyInput.dataset.saved = 'true';
       updateApiStatus(true);
       elements.captureBtn.disabled = false;
+    } else {
+      // No API key - expand the section to prompt user
+      elements.apiCard.classList.add('expanded');
+      elements.apiContent.classList.remove('collapsed');
     }
   } catch (error) {
-    console.error('Error checking API key:', error);
+    console.error('[Earth Cinema] Error checking API key:', error);
   }
 }
 
@@ -434,7 +428,7 @@ function setupEventListeners() {
   elements.apiToggle.addEventListener('click', toggleApiSection);
   elements.toggleVisibility.addEventListener('click', toggleKeyVisibility);
   elements.saveKeyBtn.addEventListener('click', saveApiKey);
-  elements.apiKeyInput.addEventListener('focus', handleApiKeyFocus);
+  elements.apiKeyInput.addEventListener('input', handleApiKeyInput);
   
   // Main Actions
   elements.captureBtn.addEventListener('click', captureView);
@@ -538,26 +532,48 @@ function toggleApiSection() {
   elements.apiContent.classList.toggle('collapsed', !isExpanded);
 }
 
-function toggleKeyVisibility() {
+let programmaticChange = false;
+
+async function toggleKeyVisibility() {
   state.isApiKeyVisible = !state.isApiKeyVisible;
   
-  if (elements.apiKeyInput.dataset.saved === 'true') {
-    return;
+  programmaticChange = true; // Prevent input handler from triggering
+  
+  // If key is saved, load it from storage to show
+  if (elements.apiKeyInput.dataset.saved === 'true' && state.isApiKeyVisible) {
+    const { falApiKey } = await chrome.storage.local.get('falApiKey');
+    if (falApiKey) {
+      elements.apiKeyInput.value = falApiKey;
+    }
+  } else if (elements.apiKeyInput.dataset.saved === 'true' && !state.isApiKeyVisible) {
+    elements.apiKeyInput.value = '••••••••••••••••••••';
   }
   
   elements.apiKeyInput.type = state.isApiKeyVisible ? 'text' : 'password';
+  
+  setTimeout(() => { programmaticChange = false; }, 0);
 }
 
-function handleApiKeyFocus() {
+function handleApiKeyInput(e) {
+  // Ignore programmatic changes (like when toggling visibility)
+  if (programmaticChange) return;
+  
+  // When user starts typing, mark as unsaved
   if (elements.apiKeyInput.dataset.saved === 'true') {
-    elements.apiKeyInput.value = '';
     elements.apiKeyInput.dataset.saved = 'false';
-    elements.apiKeyInput.type = 'password';
   }
 }
 
 async function saveApiKey() {
   const key = elements.apiKeyInput.value.trim();
+  
+  // If key is dots and already saved, just show it's already saved
+  if (key === '••••••••••••••••••••' && elements.apiKeyInput.dataset.saved === 'true') {
+    showToast('Already Saved', 'Your API key is already stored securely', 'info');
+    elements.apiCard.classList.remove('expanded');
+    elements.apiContent.classList.add('collapsed');
+    return;
+  }
   
   if (!key || key === '••••••••••••••••••••') {
     showToast('Invalid Key', 'Please enter a valid API key', 'error');
@@ -567,7 +583,11 @@ async function saveApiKey() {
   try {
     await chrome.storage.local.set({ falApiKey: key });
     state.hasApiKey = true;
+    
+    programmaticChange = true;
     elements.apiKeyInput.value = '••••••••••••••••••••';
+    setTimeout(() => { programmaticChange = false; }, 0);
+    
     elements.apiKeyInput.dataset.saved = 'true';
     elements.apiKeyInput.type = 'password';
     updateApiStatus(true);
@@ -588,7 +608,7 @@ function updateApiStatus(configured) {
   
   if (configured) {
     badge.classList.add('configured');
-    statusText.textContent = state.hasConfigKey ? 'From config' : 'Configured';
+    statusText.textContent = 'Configured';
   } else {
     badge.classList.remove('configured');
     statusText.textContent = 'Not configured';
@@ -662,18 +682,11 @@ async function transformImage() {
   elements.transformBtn.disabled = true;
   
   try {
-    let apiKey = null;
-    if (!state.hasConfigKey) {
-      const stored = await chrome.storage.local.get('falApiKey');
-      apiKey = stored.falApiKey;
-    }
-    
     // Start the operation in background (won't wait for completion)
     await chrome.runtime.sendMessage({
       action: 'startTransform',
       imageData: state.capturedImageBase64,
       prompt: prompt,
-      apiKey: apiKey,
       resolution: resolution
     });
     
@@ -707,18 +720,11 @@ async function generateVideo() {
   elements.videoBtn.disabled = true;
   
   try {
-    let apiKey = null;
-    if (!state.hasConfigKey) {
-      const stored = await chrome.storage.local.get('falApiKey');
-      apiKey = stored.falApiKey;
-    }
-    
     // Start the operation in background (won't wait for completion)
     await chrome.runtime.sendMessage({
       action: 'startVideo',
       imageUrl: state.transformedImageUrl,
       prompt: prompt,
-      apiKey: apiKey,
       duration: duration,
       generateAudio: generateAudio
     });

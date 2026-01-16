@@ -11,22 +11,19 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 ## Setup
 
 1. Clone this repo
-2. Create `config.json` in root with your fal.ai API key:
-   ```json
-   {
-     "FAL_API_KEY": "your-key-here"
-   }
-   ```
-3. Go to `chrome://extensions/`
-4. Enable "Developer mode"
-5. Click "Load unpacked" → select this folder
+2. Go to `chrome://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked" → select this folder
+5. Get your API key at [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys)
+6. Click the extension icon and enter your API key
 
 ## Usage
 
 1. Navigate to [earth.google.com](https://earth.google.com/web)
 2. Find a scenic 3D view (works with any other view too, street view can also be really cool!)
 3. Click the extension icon
-4. Capture → Transform → Generate Video
+4. Enter your fal.ai API key (first time only)
+5. Capture → Transform → Generate Video
 
 ## Tech
 
