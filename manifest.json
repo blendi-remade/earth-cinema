@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Transform Google Earth views into cinematic drone shots and videos using AI",
   "author": "fal.ai",
-  "homepage_url": "https://github.com/[your-username]/earth-cinema",
+  "homepage_url": "https://github.com/blendi-remade/earth-cinema",
   "permissions": [
     "activeTab",
     "storage",

@@ -107,13 +107,13 @@ We may update this privacy policy. Changes will be posted to this document with 
 ## Contact
 
 For privacy concerns or questions:
-- Email: [Your support email]
-- GitHub Issues: https://github.com/[your-username]/earth-cinema
+- Email: blendi@fal.ai
+- GitHub Issues: https://github.com/blendi-remade/earth-cinema
 
 ## Open Source
 
 Earth Cinema is open source. You can review the code at:
-https://github.com/[your-username]/earth-cinema
+https://github.com/blendi-remade/earth-cinema
 
 ## Your Rights
 
