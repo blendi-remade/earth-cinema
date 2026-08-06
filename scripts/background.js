@@ -18,7 +18,8 @@ const STORAGE_KEYS = {
 
 // API Endpoints
 const FAL_API = {
-  VIDEO: 'https://fal.run/fal-ai/veo3.1/fast/image-to-video'
+  VIDEO_HAILUO: 'https://fal.run/minimax/h3/image-to-video',
+  VIDEO_VEO: 'https://fal.run/fal-ai/veo3.1/fast/image-to-video'
 };
 
 // ============================================
@@ -58,7 +59,7 @@ async function handleMessage(request, sendResponse) {
       case 'startVideo':
         // Start video generation in background, don't wait for it
         sendResponse({ started: true });
-        runVideoInBackground(request.imageUrl, request.prompt, request.duration, request.generateAudio);
+        runVideoInBackground(request);
         break;
         
       case 'checkOperationStatus':
@@ -201,44 +202,62 @@ async function runTransformInBackground(imageData, prompt, resolution = '2K') {
 
 /**
  * Run video generation in background and save result to storage
+ * Supports two models: MiniMax H3 (default, best quality) and Veo 3.1 Fast (faster, audio)
  */
-async function runVideoInBackground(imageUrl, prompt, duration = '8s', generateAudio = true) {
+async function runVideoInBackground(request) {
+  const { imageUrl, prompt, model = 'hailuo' } = request;
   const apiKey = await getApiKey();
-  
+
   if (!apiKey) {
     await saveOperationError('generating_video', 'No API key configured. Please add your fal.ai API key in the extension settings.');
     return;
   }
-  
+
   // Mark operation as in progress
   await chrome.storage.local.set({
     [STORAGE_KEYS.OPERATION]: 'generating_video',
     [STORAGE_KEYS.OPERATION_ERROR]: null
   });
-  
-  console.log('[Earth Cinema] Starting Veo 3.1 video generation...', { duration, generateAudio });
-  
+
+  let endpoint, body, timeoutMinutes;
+
+  if (model === 'veo') {
+    endpoint = FAL_API.VIDEO_VEO;
+    timeoutMinutes = 8;
+    body = {
+      prompt: prompt,
+      image_url: imageUrl,
+      duration: request.duration || '8s',
+      resolution: '1080p',
+      generate_audio: request.generateAudio !== false,
+      aspect_ratio: 'auto'
+    };
+  } else {
+    endpoint = FAL_API.VIDEO_HAILUO;
+    timeoutMinutes = 10;
+    body = {
+      prompt: prompt,
+      image_url: imageUrl,
+      duration: request.duration || 5,
+      resolution: request.resolution || '2K'
+    };
+  }
+
+  console.log('[Earth Cinema] Starting video generation...', { model, endpoint, ...body, image_url: '<omitted>' });
+
   try {
-    // Create timeout promise (8 minutes)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Video generation timed out after 8 minutes. The fal.ai service may be busy. Please try again.')), 480000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Video generation timed out after ${timeoutMinutes} minutes. The fal.ai service may be busy. Please try again.`)), timeoutMinutes * 60 * 1000)
     );
-    
+
     // Wrap in waitUntil to keep service worker alive
-    const fetchPromise = waitUntil(fetch(FAL_API.VIDEO, {
+    const fetchPromise = waitUntil(fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Key ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        prompt: prompt,
-        image_url: imageUrl,
-        duration: duration,
-        resolution: '1080p',
-        generate_audio: generateAudio,
-        aspect_ratio: 'auto'
-      })
+      body: JSON.stringify(body)
     }));
     
     // Race between fetch and timeout

@@ -31,6 +31,9 @@ const elements = {
   
   // Video Section
   videoSection: document.getElementById('video-section'),
+  modelOptions: document.querySelectorAll('.model-option'),
+  hailuoOptions: document.getElementById('hailuo-options'),
+  veoOptions: document.getElementById('veo-options'),
   videoPrompt: document.getElementById('video-prompt'),
   videoBtn: document.getElementById('video-btn'),
   videoPreview: document.getElementById('video-preview'),
@@ -55,6 +58,7 @@ const state = {
   currentOperation: null, // 'capturing', 'transforming', 'generating_video', or null
   transformPrompt: '',
   videoPrompt: '',
+  videoModel: 'hailuo', // 'hailuo' (Hailuo 03) or 'veo' (Veo 3.1 Fast)
   isApiKeyVisible: false,
   hasApiKey: false
 };
@@ -66,7 +70,8 @@ const STORAGE_KEYS = {
   VIDEO_URL: 'earthCinema_videoUrl',
   OPERATION: 'earthCinema_operation',
   TRANSFORM_PROMPT: 'earthCinema_transformPrompt',
-  VIDEO_PROMPT: 'earthCinema_videoPrompt'
+  VIDEO_PROMPT: 'earthCinema_videoPrompt',
+  VIDEO_MODEL: 'earthCinema_videoModel'
 };
 
 // ============================================
@@ -92,15 +97,17 @@ async function loadPersistedState() {
       STORAGE_KEYS.VIDEO_URL,
       STORAGE_KEYS.OPERATION,
       STORAGE_KEYS.TRANSFORM_PROMPT,
-      STORAGE_KEYS.VIDEO_PROMPT
+      STORAGE_KEYS.VIDEO_PROMPT,
+      STORAGE_KEYS.VIDEO_MODEL
     ]);
-    
+
     state.capturedImageBase64 = stored[STORAGE_KEYS.CAPTURED_IMAGE] || null;
     state.transformedImageUrl = stored[STORAGE_KEYS.TRANSFORMED_URL] || null;
     state.generatedVideoUrl = stored[STORAGE_KEYS.VIDEO_URL] || null;
     state.currentOperation = stored[STORAGE_KEYS.OPERATION] || null;
     state.transformPrompt = stored[STORAGE_KEYS.TRANSFORM_PROMPT] || '';
     state.videoPrompt = stored[STORAGE_KEYS.VIDEO_PROMPT] || '';
+    state.videoModel = stored[STORAGE_KEYS.VIDEO_MODEL] || 'hailuo';
     
     console.log('[Earth Cinema] Loaded persisted state:', {
       hasCaptured: !!state.capturedImageBase64,
@@ -124,7 +131,8 @@ async function saveState() {
       [STORAGE_KEYS.VIDEO_URL]: state.generatedVideoUrl,
       [STORAGE_KEYS.OPERATION]: state.currentOperation,
       [STORAGE_KEYS.TRANSFORM_PROMPT]: state.transformPrompt,
-      [STORAGE_KEYS.VIDEO_PROMPT]: state.videoPrompt
+      [STORAGE_KEYS.VIDEO_PROMPT]: state.videoPrompt,
+      [STORAGE_KEYS.VIDEO_MODEL]: state.videoModel
     });
   } catch (error) {
     console.error('Error saving state:', error);
@@ -142,6 +150,9 @@ async function restoreUI() {
   if (state.videoPrompt) {
     elements.videoPrompt.value = state.videoPrompt;
   }
+
+  // Restore video model selection
+  applyVideoModelSelection(state.videoModel);
   
   // Restore captured image
   if (state.capturedImageBase64) {
@@ -434,6 +445,11 @@ function setupEventListeners() {
   elements.captureBtn.addEventListener('click', captureView);
   elements.transformBtn.addEventListener('click', transformImage);
   elements.videoBtn.addEventListener('click', generateVideo);
+
+  // Video model selector
+  elements.modelOptions.forEach(option => {
+    option.addEventListener('click', () => selectVideoModel(option.dataset.model));
+  });
   
   // Reset button
   elements.resetBtn?.addEventListener('click', resetState);
@@ -707,26 +723,62 @@ async function transformImage() {
 // Generate Video
 // ============================================
 
+/**
+ * Update state and UI for the chosen video model
+ */
+async function selectVideoModel(model) {
+  state.videoModel = model;
+  applyVideoModelSelection(model);
+  await saveState();
+}
+
+/**
+ * Reflect the model choice in the UI (highlight + options visibility)
+ */
+function applyVideoModelSelection(model) {
+  elements.modelOptions.forEach(option => {
+    option.classList.toggle('selected', option.dataset.model === model);
+  });
+  elements.hailuoOptions.classList.toggle('hidden', model !== 'hailuo');
+  elements.veoOptions.classList.toggle('hidden', model !== 'veo');
+}
+
 async function generateVideo() {
   const prompt = elements.videoPrompt.value.trim() || 'slow cinematic camera movement';
-  const duration = document.getElementById('video-duration').value;
-  const generateAudio = document.getElementById('video-audio').checked;
-  
+  const model = state.videoModel;
+
+  let videoParams;
+  let loadingMessage;
+
+  if (model === 'veo') {
+    videoParams = {
+      duration: document.getElementById('video-duration').value,
+      generateAudio: document.getElementById('video-audio').checked
+    };
+    loadingMessage = `Generating ${videoParams.duration} video with Veo 3.1 Fast...`;
+  } else {
+    videoParams = {
+      duration: parseInt(document.getElementById('hailuo-duration').value, 10),
+      resolution: document.getElementById('hailuo-resolution').value
+    };
+    loadingMessage = `Generating ${videoParams.duration}s ${videoParams.resolution} video with MiniMax H3...`;
+  }
+
   state.videoPrompt = prompt;
   state.currentOperation = 'generating_video';
   await saveState();
-  
-  showLoading(`Generating ${duration} video with Veo 3.1...`);
+
+  showLoading(loadingMessage);
   elements.videoBtn.disabled = true;
-  
+
   try {
     // Start the operation in background (won't wait for completion)
     await chrome.runtime.sendMessage({
       action: 'startVideo',
       imageUrl: state.transformedImageUrl,
       prompt: prompt,
-      duration: duration,
-      generateAudio: generateAudio
+      model: model,
+      ...videoParams
     });
     
     // Start polling for completion

@@ -195,10 +195,40 @@
         </div>
         <div class="card-content">
           <div class="input-group">
+            <label>Model</label>
+            <div class="model-selector" id="video-model-selector">
+              <button type="button" class="model-option selected" data-model="hailuo">
+                <span class="model-name">MiniMax H3</span>
+                <span class="model-desc">Best quality</span>
+              </button>
+              <button type="button" class="model-option" data-model="veo">
+                <span class="model-name">Veo 3.1 Fast</span>
+                <span class="model-desc">Faster &middot; audio</span>
+              </button>
+            </div>
+          </div>
+          <div class="input-group">
             <label for="video-prompt">Motion Prompt</label>
             <textarea id="video-prompt" rows="2" placeholder="e.g., slow cinematic drone push forward, gentle camera tilt up revealing the horizon"></textarea>
           </div>
-          <div class="video-options">
+          <div class="video-options" id="hailuo-options">
+            <div class="input-group">
+              <label for="hailuo-duration">Duration</label>
+              <select id="hailuo-duration">
+                <option value="5" selected>5 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="15">15 seconds</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label for="hailuo-resolution">Resolution</label>
+              <select id="hailuo-resolution">
+                <option value="768P">768P</option>
+                <option value="2K" selected>2K</option>
+              </select>
+            </div>
+          </div>
+          <div class="video-options hidden" id="veo-options">
             <div class="input-group">
               <label for="video-duration">Duration</label>
               <select id="video-duration">

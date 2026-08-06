@@ -427,6 +427,56 @@ select:focus {
   flex: 1;
 }
 
+/* ============================================
+   Model Selector
+   ============================================ */
+
+.model-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.model-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.model-option:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.model-option.selected {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.model-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.model-desc {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.model-option.selected .model-desc {
+  color: var(--text-secondary);
+}
+
 .toggle-label {
   display: flex;
   align-items: center;

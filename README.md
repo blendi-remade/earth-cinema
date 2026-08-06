@@ -6,7 +6,7 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 
 - **Capture** any Google Earth 3D view
 - **Transform** with AI (Nano Banana Pro) into cinematic shots
-- **Generate videos** (Veo 3.1) with customizable duration and audio
+- **Generate videos** (MiniMax H3 or Veo 3.1) with customizable duration, resolution, and audio
 
 ## Setup
 
@@ -30,4 +30,5 @@ Chrome extension that transforms Google Earth 3D views into cinematic images and
 - Chrome Extension (Manifest V3)
 - [fal.ai](https://fal.ai) APIs:
   - `nano-banana-pro/edit` (image transformation)
-  - `veo3.1/fast/image-to-video` (video generation)
+  - `minimax/h3/image-to-video` (video generation, default — best quality)
+  - `veo3.1/fast/image-to-video` (video generation — faster, with audio)
